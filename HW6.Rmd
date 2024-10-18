@@ -1,0 +1,109 @@
+---
+title: "HW6"
+author: "Makana Burch"
+date: "2024-10-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exploring Overpass API
+
+In order to obtain data on the businesses near BlueBike stations, I want to use Overpass, which I've used in Python before. This is an exploration of using Overpass in R. 
+
+# Downloading and loading packages
+
+```{r}
+library(httr)
+library(jsonlite)
+```
+# Testing an existing query for Overpass
+
+This query searches for schools within one mile of 42.3601, 71.0589 (Boston) and prints the results. 
+
+```{r}
+lat = 42.3601
+lon = -71.0589
+
+overpass_url = "http://overpass-api.de/api/interpreter"
+
+query = sprintf(
+  '[out:json];
+    (
+        node["amenity"="school"](around:1609,%s,%s);
+        way["amenity"="school"](around:1609,%s,%s);
+        relation["amenity"="school"](around:1609,%s,%s);
+    );
+    out center 100;', lat, lon, lat, lon, lat, lon
+)
+
+response = POST(overpass_url, body = list(data = query), encode = "form")
+
+if (response$status_code == 200) {
+  result = content(response, "text")
+  json_parsed = fromJSON(result)
+} else {
+  stop("Error")
+}
+
+print(json_parsed)
+```
+## Converting the result into a dataframe
+
+```{r}
+if (length(json_parsed$elements) > 0) {
+  extracted_data = json_parsed$elements
+}
+
+place_lat = c()
+place_lon = c()
+place_name = c()
+place_type = c()
+
+
+for (i in 1:length(extracted_data[,1])) {
+  
+  if (!is.na(extracted_data[,3][i])) {
+    place_lat = c(place_lat, extracted_data[,3][i])
+  } else if (extracted_data[,6]['lat'][i,] != "NA") {
+    place_lat = c(place_lat, extracted_data[,6]['lat'][i,])
+  } else {
+    place_lat = c(place_lat, NA)
+  }
+  
+  if (!is.na(extracted_data[,4][i])) {
+    place_lon = c(place_lon, extracted_data[,4][i])
+  } else if (extracted_data[,6]['lon'][i,] != "NA") {
+    place_lon = c(place_lon, extracted_data[,6]['lon'][i,])
+  } else {
+    place_lon = c(place_lon, NA)
+  }
+  
+  if (!is.null(extracted_data[,5]['name'][i,])) {
+    place_name = c(place_name, extracted_data[,5]['name'][i,])
+  } else {
+    place_name = c(place_name, NA)
+  }
+  
+  if (!is.null(extracted_data[,5]['amenity'][i,])) {
+    place_type = c(place_type, extracted_data[,5]['amenity'][i,])
+  } else {
+    place_type = c(place_type, NA)
+  }
+}
+
+df = data.frame(
+  Name = place_name,
+  Latitude = place_lat, 
+  Longitude = place_lon, 
+  Type = factor(place_type),
+  stringsAsFactors = FALSE
+)
+
+summary(df)
+
+```
+
+
