@@ -2,16 +2,30 @@ library(tidyverse)
 library(httr)
 library(jsonlite)
 library(data.table)
+library(dplyr)
+library(ggplot2)
 
-# reading in data 
+# READING IN 2019 BLUEBIKE DATA #
 
 dat = list.files(path = "/Users/burchm/Downloads/", pattern = "^2019.*-bluebikes-tripdata\\.csv$", full.names = TRUE)
 
 data_19 = do.call(rbind, lapply(dat, function(file) fread(file, header=TRUE)))
 
 
-# collecting business data for Tremont St / West St Station (lat: 42.35498, lon: -71.06335)
+# GROUPING BLUEBIKE DATA BY LATITUDE AND LONGITUDE # # NOT DONE #
 
+grouped_data <- data_19 %>%
+  group_by("end station latitude", "end station longitude")
+
+grouped = group_split(grouped_data)
+
+for (group in grouped) {
+  print(group["end station latitude"])
+}
+
+
+# QUERY CODE FOR 1 STATION #
+# update to loop through stations after grouping
 
 lat = 42.35498
 lon = -71.06335
@@ -77,9 +91,13 @@ query4 = sprintf(
         way["amenity"~"cinema|theatre"](around:400,%s,%s);
         relation["amenity"~"cinema|theatre"](around:400,%s,%s);
         
-        node["leisure"~"park|fitness_centre|stadium"](around:804.67, 48.8588443, 2.2943506);
-        way["leisure"~"park|fitness_centre|stadium"](around:804.67, 48.8588443, 2.2943506);
-        relation["leisure"~"park|fitness_centre|stadium"](around:804.67, 48.8588443, 2.2943506);
+        node["sport"](around:400,%s,%s);
+        way["sport"](around:400,%s,%s);
+        relation["sport"](around:400,%s,%s);
+        
+        node["leisure"](around:804.67, 48.8588443, 2.2943506);
+        way["leisure"](around:804.67, 48.8588443, 2.2943506);
+        relation["leisure"](around:804.67, 48.8588443, 2.2943506);
   
     );
     out center;', lat, lon, lat, lon, lat, lon, lat, lon, lat, lon, lat, lon
@@ -114,6 +132,20 @@ query6 = sprintf(
 )
 
 response6 = POST(overpass_url, body = list(data = query6), encode = "form")
+
+# catch-all
+query7 = sprintf(
+  '[out:json];
+    (
+        node["amenity"](around:400,%s,%s);
+        way["amenity"](around:400,%s,%s);
+        relation["amenity"](around:400,%s,%s);
+
+    );
+    out center;', lat, lon, lat, lon, lat, lon
+)
+
+response7 = POST(overpass_url, body = list(data = query7), encode = "form")
 
 parse = function(response) {
   if (response$status_code == 200) {
@@ -159,37 +191,86 @@ parse = function(response) {
     }
     
     if ("amenity" %in% colnames(extracted_data[,5]) && !is.null(extracted_data[,5]['amenity'][i,])) {
-      place_type = c(place_type, extracted_data[,5]['amenity'][i,])
+      food = c("concession stand", "food sharing", "ice cream", "Internet cafe", "juice bar", "kitchen", "winery", 
+               "restaurant", "cafe", "fast_food", "bar", "food_court")
+      work = c("administration", "building yard", "carpet washing", "car rental", "car repair", 
+               "car wash", "conference centre", "consulate", "courthouse", "coworking space", 
+               "customs", "harbourmaste", "jobcentre", "lost property office", "mailroom", "office", 
+               "police", "post office", "reception desk", "register office", "townhall", "workshop", "coworking_space")
+      education = c("archive", "driver training", "education", "first aid school", "library", "mobile library", "mtb school", 
+                    "planetarium", "preschool", "research institute", "sport school", "surf school", "swimming school", 
+                    "youth centre", "school", "college", "university", "dancing_school", "kindergarten")
+      healthcare = c("hospice", "hospital", "mobility scooter rental", "nursery", "nursing home", 
+                     "clinic", "doctors", "pharmacy", "dentist", "veterinary")
+      retail = c("shop")
+      recreation = c("arts centre", "casino", "club", "community centre", "concert hall", "convention centre", 
+                     "events centre", "events venue", "exhibition centre", "festival grounds", "fish spa", "gym", 
+                     "kick-scooter rental", "lounge", "marae", "meditation centre", "music venue", "outfitter", 
+                     "park", "rehearsal studio", "sanatorium", "sauna", "scooter rental", "ski rental", 
+                     "ski school", "spa", "stables", "stage", "studio", "swimming pool", "theatre", "yacht club", "cinema", 
+                     "fitness_centre", "stadium")
+      other = c("alm", "boat storage", "coast guard", "coast radar station", "crematorium", "crypt", "embassy", 
+                "financial advice", "freeshop", "funeral hall", "garages", "give box", "hotel", "kiosk", "lavoir", "left luggage", 
+                "letter box", "lifeboat station", "locker", "luggage locker", "mortuary", "motorcycle rental", 
+                "parcel locker", "place of mourning", "place of worship", "prison", "prison camp", "public building", 
+                "ranger station", "rescue station", "rv storage", "social centre", "toilets", "tool library", 
+                "warehouse")
+      residential = c("dormitory", "refugee housing", "refugee site", "retirement home", "shelter", "student accommodation", 
+                      "trailer park")
+      
+      if (extracted_data[,5]['amenity'][i,] %in% food) {
+        place_type = c(place_type, "food")
+      } else if (extracted_data[,5]['amenity'][i,] %in% work) {
+        place_type = c(place_type, "work")
+      }  else if (extracted_data[,5]['amenity'][i,] %in% education) {
+        place_type = c(place_type, "education")
+      }  else if (extracted_data[,5]['amenity'][i,] %in% healthcare) {
+        place_type = c(place_type, "healthcare")
+      }  else if (extracted_data[,5]['amenity'][i,] %in% retail) {
+        place_type = c(place_type, "retail")
+      }  else if (extracted_data[,5]['amenity'][i,] %in% recreation) {
+        place_type = c(place_type, "recreation")
+      }  else if (extracted_data[,5]['amenity'][i,] %in% other) {
+        place_type = c(place_type, "other")
+      }  else if (extracted_data[,5]['amenity'][i,] %in% residential) {
+        place_type = c(place_type, "residential")
+      } else {
+        place_type = c(place_type, NA)
+      }
     } else {
       place_type = c(place_type, NA)
     }
     
-    if ("shop" %in% colnames(extracted_data[,5]) && !is.null(extracted_data[,5]['shop'][i,])) {
-      place_type = c(place_type, extracted_data[,5]['shop'][i,])
-    } else {
-      place_type = c(place_type, "shop")
-    }
+    if ("shop" %in% colnames(extracted_data[,5])) {
+      food_shop = c("alcohol", "bakery", "beverages", "butcher", "cheese", "chocolate", "coffee", 
+                    "confectionery", "dairy", "deli", "farm", "food", "frozen_food", "greengrocer", 
+                    "health_food", "ice_cream", "nuts", "pasta", "pastry", "seafood", "spices", 
+                    "tea", "tortilla", "wine")
+      if (colnames(extracted_data[,5]["shop"][i,]) %in% food_shop && !is.null(colnames(extracted_data[,5]["shop"][i,]))) {
+        place_type = c(place_type, "food")
+      } else {
+        place_type = c(place_type, "retail")
+      }
+    } 
     
-    if ("leisure" %in% colnames(extracted_data[,5]) && !is.null(extracted_data[,5]['leisure'][i,])) {
-      place_type = c(place_type, extracted_data[,5]['leisure'][i,])
-    } else {
-      place_type = c(place_type, "leisure")
-    }
+    if ("leisure" %in% colnames(extracted_data[,5])) {
+      place_type = c(place_type, "recreation")
+    } 
     
-    if ("office" %in% colnames(extracted_data[,5]) && !is.null(extracted_data[,5]['office'][i,])) {
-      place_type = c(place_type, extracted_data[,5]['office'][i,])
-    } else {
-      place_type = c(place_type, "office")
-    }
+    if ("sport" %in% colnames(extracted_data[,5])) {
+      place_type = c(place_type, "recreation")
+    } 
     
-    if ("industrial" %in% colnames(extracted_data[,5]) && !is.null(extracted_data[,5]['industrial'][i,])) {
-      place_type = c(place_type, extracted_data[,5]['industrial'][i,])
-    } else {
-      place_type = c(place_type, "industrial")
-    }
+    if ("office" %in% colnames(extracted_data[,5])) {
+      place_type = c(place_type, "work")
+    } 
+    
+    if ("industrial" %in% colnames(extracted_data[,5])) {
+      place_type = c(place_type, "work")
+    } 
     
   }
-  
+
   df = data.frame(
     Name = place_name,
     Latitude = place_lat, 
@@ -202,7 +283,7 @@ parse = function(response) {
 }
 
 
-data = rbind(parse(response1), parse(response2), parse(response3), parse(response4), parse(response5), parse(response6))
+data = rbind(parse(response1), parse(response2), parse(response3), parse(response4), parse(response5), parse(response6), parse(response7))
 
 
 summary(data)
@@ -211,8 +292,7 @@ summary(data)
 
 # creating a bar plot
 
-library(dplyr)
-library(ggplot2)
+
 
 counts = data %>% count(Type)
 
