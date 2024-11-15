@@ -21,15 +21,16 @@ df['tripduration'] = df['tripduration'].astype(int)
 
 df = df.loc[(df['tripduration'] <= 259200)]
 
-df_group = df.groupby(['end_station_lat', 'end_station_lon'])
+df_group = df.groupby(['end_station_lat', 'end_station_lon', 'end_station_name'])
 
-new_data = {'Lat': [], 'Lon': [], 'Sub_Prop': []}
+new_data = {'Lat': [], 'Lon': [], 'Name': [], 'Sub_Prop': []}
 
-for (lat, lon), group in df_group:
+for (lat, lon, name), group in df_group:
     if lat != "0.0":
         new_data['Lat'].append(lat)
     if lon != "0.0":
         new_data['Lon'].append(lon)
+        new_data['Name'].append(name)
         total_trips = len(group)
         sub_trips = 0
         for index, row in group.iterrows():
@@ -37,7 +38,7 @@ for (lat, lon), group in df_group:
                 sub_trips += 1
         sub_prop = sub_trips/total_trips
         new_data['Sub_Prop'].append(sub_prop)
-
+        
 df_out = pd.DataFrame(new_data)
 
 df_out.to_csv('output.csv', index=True, header=True, sep=',', encoding='utf-8')
