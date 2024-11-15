@@ -295,6 +295,51 @@ for (i in 1:nrow(data)) {
       
   }
   
+
+
+for (i in 222:nrow(data)) {
+  print(i)
+  lat = data$Lat[i]
+  lon = data$Lon[i]
+  
+  responses = queries(lat,lon)
+  
+  results = rbind(parse(responses[[1]]), parse(responses[[2]]), parse(responses[[3]]), parse(responses[[4]]), parse(responses[[5]]), parse(responses[[6]]), parse(responses[[7]]))
+  
+  all_categories = c("food", "healthcare", "other", "NA", "work", "education", "retail", "recreation")
+  
+  counts = results %>% count(Type) %>% complete(Type = all_categories, fill = list(n = 0))
+  
+  
+  for (j in 1:nrow(counts)) {
+    if (counts$Type[j] == "food") {
+      data$Food[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "healthcare") {
+      data$Healthcare[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "other") {
+      data$Other[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "NA") {
+      data$N_A[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "work") {
+      data$Work[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "education") {
+      data$Education[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "retail") {
+      data$Retail[i] = counts$n[j]
+    } 
+    if (counts$Type[j] == "recreation") {
+      data$Recreation[i] = counts$n[j]
+    }
+    
+  }
+  
+}
   
 
 write.csv(data, file = "business.csv", row.names = TRUE)
