@@ -27,8 +27,8 @@ for (group in grouped) {
 # QUERY CODE FOR 1 STATION #
 # update to loop through stations after grouping
 
-lat = 42.35498
-lon = -71.06335
+lat = 42.2679
+lon = -71.09364
 
 overpass_url = "http://overpass-api.de/api/interpreter"
 
@@ -155,14 +155,14 @@ parse = function(response) {
     stop("Error")
   }
   
-  if (length(json_parsed$elements) > 0) {
-    extracted_data = json_parsed$elements
-  }
-  
   place_lat = c()
   place_lon = c()
   place_name = c()
   place_type = c()
+  
+  if (length(json_parsed$elements) > 0) {
+    extracted_data = json_parsed$elements
+
   
   for (i in 1:length(extracted_data[,1])) {
     
@@ -270,6 +270,7 @@ parse = function(response) {
     } 
     
   }
+}
 
   df = data.frame(
     Name = place_name,
@@ -301,6 +302,17 @@ ggplot(counts, aes(x = Type, y = n)) +
   labs(title = "Business Frequencies within 0.5 miles of Tremont St Station", x = "Business Type", y = "Frequency") +
   coord_flip() + 
   theme_minimal()
+
+'''   
+  data$Food[i] = counts[2][1,]
+  data$Recreation[i] = counts[2][2,]
+  data$Retail[i] = counts[2][3,]
+  data$Education[i] = counts[2][4,]
+  data$Work[i] = counts[2][5,]
+  data$Healthcare[i] = counts[2][6,]
+  data$Other[i] = counts[2][7,]
+  data$N_A[i] = counts[2][8,]
+  '''
 
 
 
